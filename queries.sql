@@ -61,3 +61,60 @@ select									-- Îñíîâíîé çàïğîñ. Âûáåğàåì ïîëÿ
   income
 FROM sales_by_day							-- Èç CTE òàáëèöû sales_by_day
 ORDER by day_number, seller;						-- Óïîğÿäî÷èâàåì èòîãîâóş òàáëèöó
+
+
+-- 6 Çàäàíèå ïğîåêòà
+
+-- 1. Ïîäãîòîâüòå â ôàéë age_groups.csv ñ âîçğàñòíûìè ãğóïïàìè ïîêóïàòåëåé
+select									-- Âûáèğàåì ïîëÿ
+case WHEN age >= 16 and age <= 25 then '16-25'				-- Èñïîëüçóÿ óñëîâíûé îïåğàòîğ case çàäàåì óñëîâèÿ äëÿ ôîğìèğîâàíèÿ âîçğàñòíûõ ãğóïï
+	 WHEN age >= 26 and age <= 40 then '26-40'
+	 else '40+'
+end age_category,							-- Çàäàåì ïñåâäîíèì ïîñëå ğàçäåëåíèÿ íà ãğóïïû
+COUNT(customer_id) as age_count						-- Ñ÷èòàåì êîëè÷åñòâî ÷åëîâåê â âîçğâñòíûõ ãğóïïàõ è çàäàåì ïñåâäîíèì
+from customers								-- Íàèìåíîâàíèå üàáëèöû èç êîòîğîé îñóùåñòâëÿåòñÿ âûáîğêà
+group by age_category							-- Ãğóïïåğóåì ïî âîçğâñòíûì êàòåãîğèÿì
+order by age_category							-- Ñîğòèğóåì ïî âîçğàñòíûì êàòåãîğèÿì â ïîğÿäêå âîçğàñòàíèÿ
+
+-- 2. Ïîäãîòîâüòå â ôàéë customers_by_month.csv ñ êîëè÷åñòâîì ïîêóïàòåëåé è âûğó÷êîé ïî ìåñÿöàì
+WITH sales_by_month AS (						-- Äëÿ ğåøåíèÿ çàäà÷è èñïîëüçóåì îáîáù¸ííîå òàáëè÷íîå âûğàæåíèå, CTE.	
+select									-- Âûáèğàåì ïîëÿ
+	EXTRACT(YEAR FROM s.sale_date)::TEXT || '-' || LPAD(EXTRACT(MONTH FROM s.sale_date)::TEXT, 2, '0') AS selling_month, -- Èçâëåêàåì è ñêëåèâàåì ãîë è ìåñÿö
+	COUNT(c.customer_id) as total_customers,			--Ñ÷èòàåì êîëè÷åñòâî êëèåíòîâ
+	floor(SUM(s.quantity * p.price)) as income			-- Ñ÷èòàåì ñóììû ïîòğà÷åííûõ êëèåíòàìè ñğåäñòâ
+from sales as s								-- Ñîåäèíÿåì òàáëèöû ïî óñëîêèÿì
+left join customers as c
+on s.customer_id = c.customer_id 
+left join products as p
+on s.product_id = p.product_id
+group by selling_month							-- Ãğóïïèğóåì òïî ìåñÿöó ïğîäàæè
+)
+select									-- Îñíîâíîé çàïğîñ. Âûáåğàåì ïîëÿ	
+  selling_month,														
+  total_customers,
+  income
+from sales_by_month							-- Èç CTE òàáëèöû sales_by_month			
+order by selling_month;							-- Ãğóïïèğóåì äàííûå 
+
+
+-- 3. Ïîäãîòîâüòå â ôàéë special_offer.csv ñ ïîêóïàòåëÿìè ïåğâàÿ ïîêóïêà êîòîğûõ ïğèøëàñü íà âğåìÿ ïğîâåäåíèÿ ñïåöèàëüíûõ àêöèé
+with discount as (							-- Äëÿ ğåøåíèÿ çàäà÷è èñïîëüçóåì îáîáù¸ííîå òàáëè÷íîå âûğàæåíèå, CTE.	
+  select 
+    c.customer_id,
+    concat(c.first_name, ' ', c.last_name) AS customer,
+    e.first_name || ' ' || e.last_name AS seller,
+    s.sale_date,
+    p.price,
+    ROW_NUMBER() over (partition by c.customer_id order by s.sale_date) as rn --Èñïîëüçîâóåì îêîííóş ôóíêöèş ROW_NUMBER(), ÷òîáû âûáğàòü ïåğâûé çàêàç êàæäîãî êëèåíòà
+  from sales s
+  left join customers as c on s.customer_id = c.customer_id		-- Ñîåäèíÿåì òàáëèöû ïî óñëîêèÿì
+  left join employees as e on s.sales_person_id = e.employee_id
+  left join products as p on s.product_id = p.product_id
+)
+select									-- Îñíîâíîé çàïğîñ
+	customer,							-- Âûáåğàåì ïîëÿ
+	sale_date,
+ 	seller	
+from discount								-- Èç CTE òàáëèöû discount
+where rn = 1 AND price = 0						-- Óñëîâèÿ ïåğâàÿ ïîêóïêà êëèåíòà ïî öåíå 0
+order by customer_id;							-- Óïîğÿääî÷èâàåì ïî customer_id
