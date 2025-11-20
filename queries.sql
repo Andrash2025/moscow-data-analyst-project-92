@@ -219,5 +219,4 @@ FROM (
     WHERE p.price = 0
     ORDER BY c.first_name, c.last_name, s.sale_date
 ) AS subquery
-ORDER BY customer, sale_date
-;
+ORDER BY customer, sale_date;
