@@ -2,7 +2,7 @@
 --customer_id с указанием псевдонима колонки
 --как customers_count из таблицы customers
 SELECT COUNT(customer_id) AS customers_count
-FROM customers
+FROM customers;
 
 -- 5 задание в проекте OK
 --1.Подготовьте в файл top_10_total_income.csv 
@@ -151,7 +151,7 @@ SELECT
     COUNT(customer_id) AS age_count
 FROM customers
 GROUP BY age_category
-ORDER BY age_category
+ORDER BY age_category;
 
 -- 2. Подготовьте в файл customers_by_month.csv с количеством OK
 --покупателей и выручкой по месяцам
