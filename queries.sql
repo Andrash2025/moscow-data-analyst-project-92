@@ -221,3 +221,4 @@ FROM (
 ) AS subquery
 ORDER BY customer, sale_date;
 
+
