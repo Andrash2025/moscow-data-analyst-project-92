@@ -187,7 +187,7 @@ SELECT
     income
 FROM sales_by_month
 ORDER BY selling_month;
-
+noqa: L034
 -- 3. Подготовьте в файл special_offer.csv с покупателями ОК
 --первая покупка которых пришлась на время проведения специальных акций
 -- Для решения задачи используем обобщённое 
@@ -200,13 +200,25 @@ ORDER BY selling_month;
 -- Из CTE таблицы discount
 -- Условия первая покупка клиента по цене 0
 -- Упоряддочиваем по customer_id
-SELECT DISTINCT ON (CONCAT(c.first_name, ' ', c.last_name))
-    CONCAT(c.first_name, ' ', c.last_name) AS customer,
-    s.sale_date,
-    e.first_name || ' ' || e.last_name AS seller
-FROM sales AS s
-INNER JOIN customers AS c ON s.customer_id = c.customer_id
-INNER JOIN products AS p ON s.product_id = p.product_id
-INNER JOIN employees AS e ON s.sales_person_id = e.employee_id
-WHERE p.price = 0
-ORDER BY CONCAT(c.first_name, ' ', c.last_name), s.sale_date;
+SELECT
+    customer,
+    sale_date,
+    seller
+FROM (
+    SELECT DISTINCT ON (c.first_name, c.last_name)
+        c.first_name,
+        c.last_name,
+        s.sale_date,
+        e.first_name AS seller_first_name,
+        e.last_name AS seller_last_name,
+        CONCAT(c.first_name, ' ', c.last_name) AS customer,
+        CONCAT(e.first_name, ' ', e.last_name) AS seller
+    FROM sales AS s
+    INNER JOIN customers AS c ON s.customer_id = c.customer_id
+    INNER JOIN products AS p ON s.product_id = p.product_id
+    INNER JOIN employees AS e ON s.sales_person_id = e.employee_id
+    WHERE p.price = 0
+    ORDER BY c.first_name, c.last_name, s.sale_date
+) AS subquery
+ORDER BY customer, sale_date;
+
