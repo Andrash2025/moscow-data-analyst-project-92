@@ -72,11 +72,13 @@ WITH seller_stats AS (
     LEFT JOIN products AS p ON s.product_id = p.product_id
     GROUP BY seller
 ),
+
 overall_avg AS (
     SELECT FLOOR(AVG(s.quantity * p.price)) AS avg_value
     FROM sales AS s
     LEFT JOIN products AS p ON s.product_id = p.product_id
 )
+
 SELECT
     ss.seller,
     ss.average_income
