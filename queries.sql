@@ -63,31 +63,27 @@ LIMIT 10;
 -- Задаем условие отбора, тех продавцов средняя общая выручка, 
 --которых меньше общей средней выручки
 -- Упорядочиваем выборку по средней выручке продавца по убывания
-WITH raschet AS (
+WITH seller_stats AS (
     SELECT
         CONCAT(e.first_name, ' ', e.last_name) AS seller,
-        COUNT(s.sales_id) AS operations,
-        FLOOR(SUM(s.quantity * p.price)) AS income,
-        FLOOR(AVG(s.quantity * p.price)) AS average_income,
-        SUM(SUM(s.quantity * p.price)) OVER () AS all_income,
-        SUM(COUNT(s.sales_id)) OVER () AS all_operation,
-        FLOOR(SUM(SUM(s.quantity * p.price))
-            OVER ()
-        / SUM(COUNT(s.sales_id)) OVER ()) AS avg_all
+        FLOOR(AVG(s.quantity * p.price)) AS average_income
     FROM sales AS s
-    LEFT JOIN employees AS e
-        ON s.sales_person_id = e.employee_id
-    LEFT JOIN products AS p
-        ON s.product_id = p.product_id
+    LEFT JOIN employees AS e ON s.sales_person_id = e.employee_id
+    LEFT JOIN products AS p ON s.product_id = p.product_id
     GROUP BY seller
+),
+overall_avg AS (
+    SELECT FLOOR(AVG(s.quantity * p.price)) AS avg_value
+    FROM sales AS s
+    LEFT JOIN products AS p ON s.product_id = p.product_id
 )
-
 SELECT
-    seller,
-    average_income
-FROM raschet
-WHERE average_income < avg_all
-ORDER BY average_income DESC;
+    ss.seller,
+    ss.average_income
+FROM seller_stats AS ss
+CROSS JOIN overall_avg AS oa
+WHERE ss.average_income < oa.avg_value
+ORDER BY ss.average_income DESC;
 
 --3. Подготовьте в файл day_of_the_week_income.csv отчет с данными OK
 --по выручке по каждому продавцу и дню недели
@@ -111,26 +107,20 @@ ORDER BY average_income DESC;
 -- Основной запрос. Выбераем поля
 -- Из CTE таблицы sales_by_day
 -- Упорядочиваем итоговую таблицу
-WITH sales_by_day AS (
-    SELECT
-        CONCAT(e.first_name, ' ', e.last_name) AS seller,
-        TRIM(TO_CHAR(s.sale_date, 'Day')) AS day_of_week,
-        EXTRACT(ISODOW FROM s.sale_date) AS day_number,
-        FLOOR(SUM(s.quantity * p.price)) AS income
-    FROM sales AS s
-    LEFT JOIN employees AS e
-        ON s.sales_person_id = e.employee_id
-    LEFT JOIN products AS p
-        ON s.product_id = p.product_id
-    GROUP BY seller, day_of_week, day_number
-)
-
 SELECT
+    CONCAT(e.first_name, ' ', e.last_name) AS seller,
+    TRIM(TO_CHAR(s.sale_date, 'Day')) AS day_of_week,
+    FLOOR(SUM(s.quantity * p.price)) AS income
+FROM sales AS s
+LEFT JOIN employees AS e ON s.sales_person_id = e.employee_id
+LEFT JOIN products AS p ON s.product_id = p.product_id
+GROUP BY
     seller,
-    day_of_week,
-    income
-FROM sales_by_day
-ORDER BY day_number, seller;
+    TRIM(TO_CHAR(s.sale_date, 'Day')),
+    EXTRACT(ISODOW FROM s.sale_date)
+ORDER BY
+    EXTRACT(ISODOW FROM s.sale_date),
+    seller;
 
 -- 6 Задание проекта OK
 -- 1. Подготовьте в файл age_groups.csv с возрастными группами покупателей
@@ -165,27 +155,14 @@ ORDER BY age_category;
 -- Группируем тпо месяцу продажи
 -- Основной запрос. Выбераем поля
 -- Из CTE таблицы sales_by_month
--- Группируем данные 
-WITH sales_by_month AS (
-    SELECT
-        EXTRACT(YEAR FROM s.sale_date)
-        ::TEXT || '-' || LPAD(EXTRACT(MONTH FROM s.sale_date)::TEXT, 2, '0')
-            AS selling_month,
-        COUNT(c.customer_id) AS total_customers,
-        FLOOR(SUM(s.quantity * p.price)) AS income
-    FROM sales AS s
-    LEFT JOIN customers AS c
-        ON s.customer_id = c.customer_id
-    LEFT JOIN products AS p
-        ON s.product_id = p.product_id
-    GROUP BY selling_month
-)
-
+-- Группируем данные
 SELECT
-    selling_month,
-    total_customers,
-    income
-FROM sales_by_month
+    TO_CHAR(s.sale_date, 'YYYY-MM') AS selling_month,
+    COUNT(DISTINCT s.customer_id) AS total_customers,
+    FLOOR(SUM(s.quantity * p.price)) AS income
+FROM sales AS s
+LEFT JOIN products AS p ON s.product_id = p.product_id
+GROUP BY TO_CHAR(s.sale_date, 'YYYY-MM')
 ORDER BY selling_month;
 -- 3. Подготовьте в файл special_offer.csv с покупателями ОК
 --первая покупка которых пришлась на время проведения специальных акций
